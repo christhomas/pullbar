@@ -59,6 +59,8 @@ macOS may ask you to confirm its first launch.
 |---|---|
 | `make build` | Builds the release executable in `.build/release/`. |
 | `make run` | Builds and runs the release executable directly, without an app bundle. |
+| `make test` | Runs the unit tests. |
+| `make mutation-test` | Checks that the tests catch deliberate bugs. |
 | `make app` | Creates the ad-hoc-signed `build/pullbar.app` bundle. |
 | `make install` | Creates the bundle, copies it to `~/Applications`, and opens it. |
 | `make clean` | Removes `.build` and `build`. |
@@ -110,9 +112,33 @@ items per page and reads at most four pages, so a section source is limited to
 `archived:false`, `sort:updated-desc`, and the selected updated-time filter.
 
 For each returned pull request, the app reads the latest commit's
-`statusCheckRollup`. It fetches all additional pages of check contexts when a
-pull request has more than 100 checks, so the displayed check total and passed
-count include every context GitHub returns for that rollup.
+`statusCheckRollup` with GitHub's per-state counts of check runs and status
+contexts, so the displayed check total and passed count include every check,
+however many there are, without paging through them.
+
+## Testing
+
+```sh
+make test            # or: swift test
+make mutation-test   # or: scripts/mutation-test.sh
+```
+
+The unit tests in `Tests/pullbarTests/` cover the inbox rules (which section a
+pull request lands in, sorting, the review and check labels), the settings,
+reading GitHub's GraphQL responses and errors through a stubbed network, the
+three inbox searches, the Keychain (using a throwaway item, never your
+token), the `gh` token lookup, the menu bar title, and the menu's contents.
+The parts that need a real screen or the system are not unit tested: the
+token prompt, the status bar item itself, opening URLs, and login items.
+
+`make mutation-test` checks that the tests catch real bugs. It applies a list
+of small, deliberate bugs to the code one at a time, such as a flipped
+condition, a wrong label, or a dropped search filter, and runs the tests
+after each. Every one must make a test fail; a bug that goes unnoticed means
+a missing test. When you change logic, add a test for it, and add a mutation
+for any rule the existing ones do not cover: to `scripts/mutation-test.sh`,
+or, for a new feature, to its own file in `scripts/mutations/` (one entry per
+line, same format), so feature pull requests don't all edit the same list.
 
 ## Project layout
 
@@ -127,6 +153,8 @@ count include every context GitHub returns for that rollup.
 | `Sources/pullbar/Keychain.swift` | Login-Keychain storage. |
 | `Sources/pullbar/Settings.swift` | `UserDefaults` settings. |
 | `Packaging/` | App metadata and icon-build script. |
+| `Tests/pullbarTests/` | Unit tests. |
+| `scripts/mutation-test.sh` | Mutation test: deliberate bugs the tests must catch. |
 | `Makefile` | Build, bundle, install, and clean targets. |
 | `LICENSE` | MIT license terms. |
 
